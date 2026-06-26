@@ -2247,7 +2247,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             msg_snippet = json.dumps(command_message, ensure_ascii=False, default=str)[:500]
         except Exception:
             msg_snippet = str(command_message)[:500]
-        self.ctx.logger.info("input_file_msg_dump: %s", msg_snippet)
+        self.ctx.logger.debug("input_file_msg_dump: %s", msg_snippet)
         if not file_segments:
             if not reply_message_id:
                 self.ctx.logger.warning("input_file_skip: no file segments and no reply message id")
@@ -2262,7 +2262,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
                 reply_snippet = json.dumps(reply_message, ensure_ascii=False, default=str)[:800]
             except Exception:
                 reply_snippet = str(reply_message)[:800]
-            self.ctx.logger.info("input_file_reply_msg_dump: %s", reply_snippet)
+            self.ctx.logger.debug("input_file_reply_msg_dump: %s", reply_snippet)
 
             # 优先用 MaiBot 自己的 message.get_by_id 读取被回复消息。
             # 如果 SDK 返回的消息里没有文件段，再退回当前 QQ 适配器的 get_msg 读取原始消息。
@@ -2285,7 +2285,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             seg_snippet = json.dumps(file_segments, ensure_ascii=False, default=str)[:800]
         except Exception:
             seg_snippet = str(file_segments)[:800]
-        self.ctx.logger.info("input_file_segments_dump (source=%s): %s", source, seg_snippet)
+        self.ctx.logger.debug("input_file_segments_dump (source=%s): %s", source, seg_snippet)
 
         input_dir_name = self._safe_dir_name(self.config.input_file.input_dir_name or "input")
         input_dir = workspace_dir / input_dir_name

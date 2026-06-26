@@ -11,7 +11,7 @@ enabled = true
 # 是否使用 NapCat Adapter API 高级能力。
 # 与 [snowluma].enabled 二选一；如果两者同时开启，插件会视为配置冲突，不会把 NapCat 当作 SnowLuma 兜底。
 # 开启后可通过 MaiBot SDK 调用 adapter.napcat.* 公开 API，用于产物直传、私聊进度和补全 QQ 文件信息。
-enabled = true
+enabled = false
 
 # 调用 upload_group_file/upload_private_file 时是否执行真实上传。
 upload_file = true
