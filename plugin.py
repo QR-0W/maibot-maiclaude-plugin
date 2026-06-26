@@ -1,4 +1,4 @@
-"""麦劳德 (MaicLaude) — 麦麦用 Claude Code CLI 做任务。
+"""Claude Code CLI QQ 调度插件。
 
 基于 Arcczr/maibot-codex-plugin (MIT License) 改造，
 将 Codex CLI backend 替换为 Claude Code CLI。
@@ -29,12 +29,13 @@ from uuid import uuid4
 from maibot_sdk import Command, Field, MaiBotPlugin, PluginConfigBase
 
 import asyncio
+import base64
 import httpx
 import json
 import time
 
 
-PLUGIN_ID = "qr0w.maiclaude"
+PLUGIN_ID = "qr0w.remote-claude-code-agent"
 TERMINAL_STATUSES = {"succeeded", "failed", "cancelled"}
 ACTIVE_STATUSES = {"queued", "running"}
 SUPPORTED_COMMAND_PREFIXES = ("/claude",)
@@ -918,7 +919,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
         self._stop_periodic_cleanup_task()
         if not self.config.task.enable_periodic_cleanup:
             return
-        self._cleanup_task = asyncio.create_task(self._run_periodic_cleanup(), name="maiclaude:cleanup")
+        self._cleanup_task = asyncio.create_task(self._run_periodic_cleanup(), name="remote_claude_code_agent:cleanup")
 
     def _stop_periodic_cleanup_task(self) -> Optional[asyncio.Task[None]]:
         """停止后台定时清理任务。"""
@@ -953,7 +954,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             return
 
     @Command(
-        "maiclaude",
+        "remote_claude_code_agent",
         description="触发远程 Ubuntu Claude Code CLI 任务",
         pattern=r"(?:^|\s)(?P<agent_command>/(?:claude)(?:\s+[\s\S]*)?)\s*$",
     )
@@ -1418,7 +1419,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             "platform": platform,
             "user_id": user_id,
             "group_id": group_id,
-            "source": "maibot_maiclaude",
+            "source": "maibot_remote_claude_code_agent",
             "options": {
                 "forward_progress": bool(self.config.progress.forward_progress),
             },
@@ -2235,14 +2236,33 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             file_segments = self._extract_file_segments_from_text(command_message)
             source = "当前命令文本"
         reply_message_id = self._extract_reply_message_id(command_message)
+        self.ctx.logger.info(
+            "input_file_detect: segments=%d reply_id=%s msg_type=%s",
+            len(file_segments),
+            (reply_message_id or "<empty>"),
+            type(command_message).__name__,
+        )
+        # 调试：dump 消息前 500 字符，方便排查消息结构
+        try:
+            msg_snippet = json.dumps(command_message, ensure_ascii=False, default=str)[:500]
+        except Exception:
+            msg_snippet = str(command_message)[:500]
+        self.ctx.logger.info("input_file_msg_dump: %s", msg_snippet)
         if not file_segments:
             if not reply_message_id:
+                self.ctx.logger.warning("input_file_skip: no file segments and no reply message id")
                 return []
 
             try:
                 reply_message = await self.ctx.message.get_by_id(reply_message_id, stream_id=stream_id)
             except Exception as exc:
                 raise RuntimeError(f"无法读取被回复的消息：{exc}") from exc
+
+            try:
+                reply_snippet = json.dumps(reply_message, ensure_ascii=False, default=str)[:800]
+            except Exception:
+                reply_snippet = str(reply_message)[:800]
+            self.ctx.logger.info("input_file_reply_msg_dump: %s", reply_snippet)
 
             # 优先用 MaiBot 自己的 message.get_by_id 读取被回复消息。
             # 如果 SDK 返回的消息里没有文件段，再退回当前 QQ 适配器的 get_msg 读取原始消息。
@@ -2260,6 +2280,12 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
                     source = "QQ 适配器原始被回复消息文本"
         if not file_segments:
             raise RuntimeError("被回复的消息里没有可用文件。请回复 QQ 文件消息后再发送 /claude。")
+
+        try:
+            seg_snippet = json.dumps(file_segments, ensure_ascii=False, default=str)[:800]
+        except Exception:
+            seg_snippet = str(file_segments)[:800]
+        self.ctx.logger.info("input_file_segments_dump (source=%s): %s", source, seg_snippet)
 
         input_dir_name = self._safe_dir_name(self.config.input_file.input_dir_name or "input")
         input_dir = workspace_dir / input_dir_name
@@ -2293,7 +2319,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
                 message_type = str(value.get("type") or value.get("msg_type") or "").strip().lower()
                 data = value.get("data")
                 if message_type == "reply" and isinstance(data, dict):
-                    reply_id = self._first_text_value(data, ["id", "message_id", "msg_id", "reply_id"])
+                    reply_id = self._first_text_value(data, ["id", "message_id", "msg_id", "reply_id", "target_message_id"])
                     if reply_id:
                         return reply_id
                 reply_id = self._first_text_value(
@@ -2305,6 +2331,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
                         "quoted_message_id",
                         "quote_message_id",
                         "reply_id",
+                        "target_message_id",
                     ],
                 )
                 if reply_id:
@@ -2319,6 +2346,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
                         "quoted_message_id",
                         "quote_message_id",
                         "reply_id",
+                        "target_message_id",
                     ],
                 )
                 if reply_id:
@@ -2450,7 +2478,12 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             raise RuntimeError(f"文件 {name} 缺少可下载地址或本地路径")
 
         target_path = self._dedupe_path(input_dir / self._safe_filename(name))
-        if file_ref.lower().startswith(("http://", "https://")):
+        # 处理 NapCat download_file 返回的 base64 数据
+        base64_data = str(resolved.get("_base64_data") or "").strip()
+        if base64_data:
+            target_path.write_bytes(base64.b64decode(base64_data))
+            self.ctx.logger.info("input_file_base64: wrote %d bytes to %s", target_path.stat().st_size, target_path.name)
+        elif file_ref.lower().startswith(("http://", "https://")):
             if not self.config.input_file.allow_url_download:
                 raise RuntimeError(f"输入文件 {name} 是 URL，但 input_file.allow_url_download 未启用")
             await self._download_input_file(file_ref, target_path)
@@ -2485,16 +2518,27 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
         active_adapter = self._active_qq_adapter()
         if active_adapter == "napcat":
             try:
-                response_data = await self._call_napcat_action("adapter.napcat.file.get_file", {"file_id": file_id})
+                # 尝试通过 download_file API 获取文件。NapCat 返回 base64 或文件数据。
+                download_result = await self._call_napcat_action(
+                    "adapter.napcat.file.download_file",
+                    {"file_id": file_id},
+                )
             except Exception as exc:
-                self.ctx.logger.warning("NapCat get_file 获取输入文件失败: %s", exc)
+                self.ctx.logger.warning("NapCat download_file 失败: %s", exc)
             else:
-                if isinstance(response_data, dict):
+                if isinstance(download_result, dict):
+                    # download_file 可能返回 {"file": "base64..."} 或 {"url": "..."} 或 {"path": "..."}
                     merged = dict(data)
-                    merged.update(response_data)
+                    merged.update(download_result)
                     if self._select_input_file_ref(merged):
                         return merged
-                    data = merged
+                    # 如果有 base64 数据，写入临时文件
+                    base64_data = str(download_result.get("data") or download_result.get("file") or "").strip()
+                    if base64_data and not base64_data.startswith(("http://", "https://", "/", "\\")):
+                        merged["_base64_data"] = base64_data
+                        data = merged
+                    else:
+                        data = merged
         elif active_adapter == "snowluma":
             return data
 
@@ -2621,12 +2665,27 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
 
     @staticmethod
     def _guess_input_filename(data: Dict[str, Any], file_ref: str) -> str:
-        """推断输入文件名。"""
+        """推断输入文件名。
+
+        优先级: QQ 原始文件名 (file) > NapCat 返回的文件名 (name/filename/file_name) > URL/路径提取。
+        NapCat download_file 可能返回内部文件名 (如 qqdownloadftnv5)，
+        不应覆盖 QQ 消息中的原始文件名。
+        """
+
+        # 优先使用 QQ 文件段中的原始文件名
+        original_name = str(data.get("file") or "").strip()
+        if original_name and original_name not in ("qqdownloadftnv5",):
+            return original_name
 
         for key in ("name", "filename", "file_name"):
             value = str(data.get(key) or "").strip()
-            if value:
+            if value and value not in ("qqdownloadftnv5",):
                 return value
+
+        # fallback: 如果只有原始 file 字段（即使叫 qqdownloadftnv5），也用它
+        if original_name:
+            return original_name
+
         ref = str(file_ref or "").strip()
         if ref.lower().startswith(("http://", "https://")):
             return Path(httpx.URL(ref).path).name or "input_file"
@@ -2770,12 +2829,15 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
                 env=env,
             )
             self.ctx.logger.info("启动本机 Claude Code 任务 %s: %s", task_state.task_id, " ".join(command))
-            # Claude Code -p 模式：prompt 通过命令行参数传入，不需要 stdin
+            # Claude Code -p 模式：prompt 通过命令行参数传入，不需要 stdin。
+            # 关键：设置 cwd 为 workspace 目录。Claude Code 没有 -C flag，
+            # 它直接从进程的工作目录启动，所以必须用 cwd 参数。
             process = await asyncio.create_subprocess_exec(
                 *command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=env,
+                cwd=str(workspace_dir),
             )
             task_state.process = process
 
@@ -3052,7 +3114,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
         replacements: Dict[str, str] = {}
         try:
             plugin_dir = self._plugin_dir().resolve()
-            replacements[str(plugin_dir)] = "maiclaude"
+            replacements[str(plugin_dir)] = "remote_claude_code_agent"
         except OSError:
             pass
         try:
@@ -3421,8 +3483,18 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
 
         lines = [f"{_display_task_kind(task_state.task_id)} {task_state.task_id} {status_text}。"]
         if summary:
+            # 去重：如果摘要文本已经作为最后一条进度发出，就不再重复显示
+            last_progress = (task_state.pending_local_progress_text or "").strip()
             sanitized_summary = self._sanitize_task_output_text(task_state, summary)
-            lines.append(_truncate_text(_plain_qq_text(sanitized_summary), max(int(self.config.progress.max_summary_chars), 100)))
+            plain_summary = _plain_qq_text(sanitized_summary).strip()
+            if last_progress and plain_summary and (
+                plain_summary in last_progress or last_progress in plain_summary or
+                _truncate_text(plain_summary, 60) == _truncate_text(last_progress, 60)
+            ):
+                # 摘要与最后一条进度重复，跳过摘要，仅保留状态行
+                pass
+            else:
+                lines.append(_truncate_text(plain_summary, max(int(self.config.progress.max_summary_chars), 100)))
         if error:
             sanitized_error = self._sanitize_task_output_text(task_state, error)
             lines.append(f"错误：{_truncate_text(_plain_qq_text(sanitized_error), 800)}")
