@@ -1,5 +1,9 @@
 """Claude Code CLI QQ 调度插件。
 
+基于 Arcczr/maibot-codex-plugin (MIT License) 改造，
+将 Codex CLI backend 替换为 Claude Code CLI。
+原始项目: https://github.com/Arcczr/maibot-codex-plugin
+
 这个文件是插件的主体实现，核心目标是把 QQ 里的 /claude 指令转换成一次
 Claude Code CLI 任务，并把进度、最终结果、产物文件回传到 QQ。
 
@@ -30,7 +34,7 @@ import json
 import time
 
 
-PLUGIN_ID = "arcczr.remote-claude-code-agent"
+PLUGIN_ID = "qr0w.remote-claude-code-agent"
 TERMINAL_STATUSES = {"succeeded", "failed", "cancelled"}
 ACTIVE_STATUSES = {"queued", "running"}
 SUPPORTED_COMMAND_PREFIXES = ("/claude",)
