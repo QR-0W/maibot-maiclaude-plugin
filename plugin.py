@@ -1,4 +1,4 @@
-"""Claude Code CLI QQ 调度插件。
+"""麦劳德 (MaicLaude) — 麦麦用 Claude Code CLI 做任务。
 
 基于 Arcczr/maibot-codex-plugin (MIT License) 改造，
 将 Codex CLI backend 替换为 Claude Code CLI。
@@ -34,7 +34,7 @@ import json
 import time
 
 
-PLUGIN_ID = "qr0w.remote-claude-code-agent"
+PLUGIN_ID = "qr0w.maiclaude"
 TERMINAL_STATUSES = {"succeeded", "failed", "cancelled"}
 ACTIVE_STATUSES = {"queued", "running"}
 SUPPORTED_COMMAND_PREFIXES = ("/claude",)
@@ -918,7 +918,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
         self._stop_periodic_cleanup_task()
         if not self.config.task.enable_periodic_cleanup:
             return
-        self._cleanup_task = asyncio.create_task(self._run_periodic_cleanup(), name="remote_claude_code_agent:cleanup")
+        self._cleanup_task = asyncio.create_task(self._run_periodic_cleanup(), name="maiclaude:cleanup")
 
     def _stop_periodic_cleanup_task(self) -> Optional[asyncio.Task[None]]:
         """停止后台定时清理任务。"""
@@ -953,7 +953,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             return
 
     @Command(
-        "remote_claude_code_agent",
+        "maiclaude",
         description="触发远程 Ubuntu Claude Code CLI 任务",
         pattern=r"(?:^|\s)(?P<agent_command>/(?:claude)(?:\s+[\s\S]*)?)\s*$",
     )
@@ -1418,7 +1418,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             "platform": platform,
             "user_id": user_id,
             "group_id": group_id,
-            "source": "maibot_remote_claude_code_agent",
+            "source": "maibot_maiclaude",
             "options": {
                 "forward_progress": bool(self.config.progress.forward_progress),
             },
@@ -3052,7 +3052,7 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
         replacements: Dict[str, str] = {}
         try:
             plugin_dir = self._plugin_dir().resolve()
-            replacements[str(plugin_dir)] = "remote_claude_code_agent"
+            replacements[str(plugin_dir)] = "maiclaude"
         except OSError:
             pass
         try:

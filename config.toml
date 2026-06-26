@@ -1,4 +1,4 @@
-# remote_claude_code_agent - Claude Code CLI QQ 调度器配置
+# maiclaude - Claude Code CLI QQ 调度器配置
 
 [plugin]
 # 配置文件版本
@@ -39,7 +39,7 @@ max_file_size_mb = 100.0
 claude_binary = "claude"
 
 # 本地任务根目录。相对路径按插件目录解析。
-# 默认写入 remote_claude_code_agent/data/tasks。
+# 默认写入 maiclaude/data/tasks。
 # 不建议使用默认目录以外的其他路径，可能存在安全和误删风险，除非你知道自己在做什么。
 work_root = "data/tasks"
 

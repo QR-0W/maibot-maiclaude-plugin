@@ -30,14 +30,14 @@
 cd MaiBot/plugins
 
 # 2. 克隆插件
-git clone https://github.com/QR-0W/maibot-claude-code-plugin.git qr0w.remote-claude-code-agent
+git clone https://github.com/QR-0W/maibot-maiclaude-plugin.git qr0w.maiclaude
 
 # 3. 重启 MaiBot
 ```
 
 ## 配置
 
-编辑 `plugins/qr0w.remote-claude-code-agent/config.toml`：
+编辑 `plugins/qr0w.maiclaude/config.toml`：
 
 ### 最小配置（开箱即用）
 
@@ -173,7 +173,7 @@ admin_users = ["qq:123456789"]
 ## 目录结构
 
 ```
-qr0w.remote-claude-code-agent/
+qr0w.maiclaude/
 ├── _manifest.json              # 插件元数据
 ├── config.toml                 # 运行时配置
 ├── plugin.py                   # 主实现
