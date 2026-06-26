@@ -81,9 +81,9 @@ artifact_globs = [
 
 [permission]
 # 是否允许所有用户触发。
-# true 表示默认所有用户都能触发；如 user_list_mode = "whitelist"，trigger_users 里的用户仍会被禁止。
-# false 表示必须通过用户白名单；可使用旧 allowed_users，或使用 user_list_mode = "whitelist" + trigger_users。
-allow_all_users = false
+# true 表示默认所有用户都能触发；如 user_list_mode = "blacklist"，trigger_users 里的用户仍会被禁止。
+# false 表示必须通过用户白名单；可使用旧 allowed_users，或使用 user_list_mode = "blacklist" + trigger_users。
+allow_all_users = true
 
 # 旧版用户白名单，保留兼容。推荐新配置使用 user_list_mode + trigger_users。
 allowed_users = []
@@ -91,13 +91,13 @@ allowed_users = []
 # 用户名单模式：whitelist 或 blacklist。
 # whitelist：只有 trigger_users 里的用户能触发。
 # blacklist：trigger_users 里的用户不能触发，其他用户按 allow_all_users 规则处理。
-user_list_mode = "whitelist"
+user_list_mode = "blacklist"
 
 # 用户黑白名单。推荐写成 "qq:用户ID"；也兼容只写用户 ID。
-trigger_users = ["qq:1549785199"]
+trigger_users = []
 
 # 管理员用户。允许使用 danger-full-access 等高危配置。
-admin_users = ["qq:1549785199"]
+admin_users = []
 
 # 旧版聊天流白名单，保留兼容。推荐新配置使用 chat_list_mode + trigger_chats。
 allowed_groups = []
