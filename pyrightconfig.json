@@ -1,0 +1,10 @@
+{
+  "extraPaths": [
+    "/home/qr0w/MaiBot/.venv/lib/python3.13/site-packages",
+    "/home/qr0w/MaiBot"
+  ],
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false
+}

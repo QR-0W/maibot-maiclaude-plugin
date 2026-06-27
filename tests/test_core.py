@@ -1,7 +1,7 @@
 """MaicLaude 核心模块测试。"""
 
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -15,7 +15,7 @@ class TestConstants:
         assert "." in PLUGIN_ID
 
     def test_status_sets(self):
-        from maiclaude.core.constants import TERMINAL_STATUSES, ACTIVE_STATUSES
+        from maiclaude.core.constants import ACTIVE_STATUSES, TERMINAL_STATUSES
         assert "succeeded" in TERMINAL_STATUSES
         assert "failed" in TERMINAL_STATUSES
         assert "cancelled" in TERMINAL_STATUSES
