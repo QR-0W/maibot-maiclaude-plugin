@@ -152,6 +152,8 @@ class RemoteAgentClient:
 class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
     """通过远程服务运行 Claude Code CLI 的调度插件。"""
 
+    config: RemoteClaudeCodeAgentConfig  # 覆盖基类 PluginConfigBase，供 Pyright 类型推导
+
     config_model = RemoteClaudeCodeAgentConfig
 
     def __init__(self) -> None:
