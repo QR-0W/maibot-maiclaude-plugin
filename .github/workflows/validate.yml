@@ -1,0 +1,67 @@
+name: Validate
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install httpx
+
+      - name: Run tests
+        run: python -m pytest tests/ -v
+
+  manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate _manifest.json
+        run: |
+          python3 -c "
+          import json, sys
+          with open('_manifest.json') as f:
+              d = json.load(f)
+          assert d['manifest_version'] == 2, 'manifest_version must be 2'
+          assert d['id'] == 'qr0w.maiclaude', 'wrong plugin id'
+          assert '.' in d['id'], 'id must contain dot'
+          assert d['license'] == 'MIT'
+          assert isinstance(d['author'], dict), 'author must be object'
+          assert 'name' in d['author'] and 'url' in d['author']
+          print('Manifest OK')
+          "
+
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Check Python syntax
+        run: |
+          python3 -c "
+          import ast, sys, os
+          for root, dirs, files in os.walk('.'):
+              dirs[:] = [d for d in dirs if d not in ('.git', '__pycache__', '.omc', 'data')]
+              for f in files:
+                  if f.endswith('.py'):
+                      path = os.path.join(root, f)
+                      try:
+                          with open(path) as fh:
+                              ast.parse(fh.read())
+                      except SyntaxError as e:
+                          print(f'SYNTAX ERROR: {path}: {e}')
+                          sys.exit(1)
+          print('All Python files syntax OK')
+          "

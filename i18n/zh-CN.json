@@ -1,0 +1,37 @@
+{
+  "plugin.name": "麦可当劳(MaicLaude): Maibot Using Claude Code CLI",
+  "plugin.description": "通过 QQ 命令在 MaiBot 所在服务器上运行 Claude Code CLI",
+
+  "command.description": "触发 Claude Code CLI 任务",
+  "command.help.title": "Claude Code Agent 命令",
+
+  "command.help.create": "创建一次性 task",
+  "command.help.dm": "阶段性进度尝试私聊发送给你",
+  "command.help.session": "创建持久 session",
+  "command.help.continue": "继续当前用户最近 session",
+  "command.help.resume": "恢复指定对话",
+  "command.help.status": "查看任务状态",
+  "command.help.cancel": "取消指定任务",
+  "command.help.recover": "恢复未正常回传的产物",
+  "command.help.list": "查看当前用户记录",
+  "command.help.config": "查看当前模型和运行配置",
+  "command.help.mcp": "查看当前 Claude Code MCP 服务器",
+  "command.help.help": "显示此帮助信息",
+
+  "task.created.local": "本机 Claude Code 任务已创建",
+  "task.created.remote": "远程 Claude Code 任务已创建",
+  "task.created.session": "Claude Code session 任务已创建",
+  "task.created.resume": "Claude Code 续聊任务已创建",
+
+  "task.status.succeeded": "已完成",
+  "task.status.failed": "失败",
+  "task.status.cancelled": "已取消",
+
+  "error.permission.denied": "你没有权限触发 Claude Code Agent",
+  "error.no.server": "远程 Claude Code Agent 服务地址未配置",
+  "error.no.token": "远程 Claude Code Agent token 未配置",
+  "error.cli.not_found": "找不到 Claude Code CLI 可执行文件",
+  "error.task.timeout": "任务执行超时",
+  "error.no.files": "被回复的消息里没有可用文件",
+  "error.local.path": "当前未允许读取服务器本地路径"
+}
