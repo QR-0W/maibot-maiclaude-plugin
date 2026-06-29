@@ -7,8 +7,9 @@
 - 支持 `/claude <任务描述>` 触发 Claude Code CLI 本地任务
 - 实时转发 NDJSON 流式进度到 QQ
 - 任务完成后自动扫描并上传产物（docx/pdf/xlsx/ppt/zip 等）
-- 支持 NapCat 文件直传（产物回传）和文件输入（QQ 文件作为任务材料）
+- 支持 NapCat 文件直传和 SnowLuma OneBot file 段
 - 支持 `/claude --dm` 私聊进度推送
+- 支持 session 续聊（`/claude session` / `/claude continue`）
 - 支持 `/claude mcp` 列出 MCP 服务器
 - 支持 `/claude config` 查看配置
 - 回复 QQ 文件消息作为输入材料
@@ -20,7 +21,7 @@
 2. **Claude Code CLI** 已安装并认证
    - 安装：`npm install -g @anthropic-ai/claude-code`
    - 认证：`claude auth login`（推荐）或设置 `ANTHROPIC_API_KEY` 环境变量
-3. QQ 适配器：NapCat（用于文件上传与输入）
+3. QQ 适配器：NapCat 或 SnowLuma（用于文件上传，可选）
 
 ## 安装
 
@@ -142,6 +143,16 @@ upload_file = true
 
 NapCat 支持 `upload_group_file` / `upload_private_file` API，可直传产物到 QQ。
 
+### SnowLuma
+
+在 `config.toml` 中启用 SnowLuma：
+
+```toml
+[snowluma]
+enabled = true
+send_artifacts_as_file_segments = true
+```
+
 ## 权限控制
 
 ```toml
@@ -178,6 +189,20 @@ qr0w.maiclaude/
                 ├── input/      # QQ 文件输入材料
                 └── artifacts/  # 生成的产物
 ```
+
+## ⚠️ 安全须知
+
+本插件始终以 `--dangerously-skip-permissions` 模式运行 Claude Code CLI。这是 QQ 无人值守场景的硬性要求 — 没有人能在群里点击 "Approve"。
+
+这意味着 Claude Code 子进程在宿主机上拥有完整文件系统权限。插件已通过以下措施缓解风险：
+
+- `cwd` 限定工作目录为任务 workspace
+- 环境变量白名单（仅透传 `PATH`/`HOME`/`CLAUDE_HOME` 等必要变量）
+- 本地路径访问拦截（`input_file.allowed_local_roots` 空列表时禁止读取）
+- 输入文件 URL 下载前进行 SSRF 校验（拦截 localhost/内网/元数据端点）
+- `--max-turns` 限制 agentic 轮次防止失控
+
+**建议**：使用专用低权限系统账户运行 MaiBot，并为 `/claude` 配置用户白名单。
 
 ## 与 Codex 插件的区别
 

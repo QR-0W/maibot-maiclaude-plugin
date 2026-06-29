@@ -1893,8 +1893,38 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             return file_value
         return ""
 
+    @staticmethod
+    def _validate_download_host(url: str) -> None:
+        """校验下载 URL 的目标主机，防止 SSRF 攻击。
+
+        拦截 localhost、内网地址（10.x / 172.16-31.x / 192.168.x）和
+        云元数据端点（169.254.169.254）。这些地址在 QQ 文件下载的正常流程中
+        不应出现，拦截可以防止恶意构造的 URL 被用来探测内网服务。
+        """
+        from ipaddress import ip_address
+        from urllib.parse import urlparse
+
+        hostname = (urlparse(url).hostname or "").lower()
+        if not hostname:
+            raise ValueError(f"无法解析下载 URL 的主机名：{url[:80]}")
+
+        blocked_hosts = {"localhost", "127.0.0.1", "0.0.0.0", "169.254.169.254", "[::1]", "::1"}
+        if hostname in blocked_hosts or hostname.startswith("0.0.0.0"):
+            raise ValueError(f"拒绝下载到保留地址：{hostname}")
+
+        try:
+            addr = ip_address(hostname)
+        except ValueError:
+            # 不是 IP 地址（普通域名），放行
+            return
+
+        if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_multicast or addr.is_reserved:
+            raise ValueError(f"拒绝下载到受限地址：{hostname}")
+
     async def _download_input_file(self, url: str, target_path: Path) -> None:
         """下载输入文件到目标路径。"""
+
+        self._validate_download_host(url)
 
         timeout = max(float(self.config.input_file.download_timeout_seconds), 1.0)
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
