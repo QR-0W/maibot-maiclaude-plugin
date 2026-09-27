@@ -2385,11 +2385,8 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
             elif isinstance(content, str):
                 return self._clean_claude_progress_text(content)
 
-        # 从 result 类型中提取最终结果摘要
-        if event_type == "result":
-            result_text = str(event.get("result") or event.get("text") or "")
-            return self._clean_claude_progress_text(result_text)
-
+        # result 类型是 Claude Code 的终端回答，将在 _read_stream_json_output
+        # 中作为最终摘要提取，此处不重复提取为进度，避免与 final 消息重复。
         return ""
 
     @staticmethod
@@ -2693,7 +2690,9 @@ class RemoteClaudeCodeAgentPlugin(MaiBotPlugin):
                 elif isinstance(content, str) and content.strip():
                     all_texts.append(content)
 
-            elif event_type == "result":
+            elif event_type == "result" and not all_texts:
+                # result 是终端回答，仅在 assistant 没有输出文本时作为兜底。
+                # 如果 assistant 已有文本（通常与 result 相同），跳过避免重复。
                 result = str(event.get("result") or event.get("text") or "")
                 if result.strip():
                     all_texts.append(result)
